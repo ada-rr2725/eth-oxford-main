@@ -118,11 +118,19 @@ First, verify the On-Chain Logic (contracts and protection scripts).
 
 ```bash
 # 1. Clone & Install Dependencies
-git clone <your-repo-link>
+git clone https://github.com/ada-rr2725/lumiscan-protocol.git
 cd lumiscan-protocol
 npm install
 
-# 2. Run the "Crash Test" Simulation
+# 2. Setup .env file
+cp .env.example .env
+
+# 3. Change PRIVATE_KEY to yours
+
+# 4. Compile the project
+npx hardhat compile
+
+# 5. Run the "Crash Test" Simulation
 # This deploys contracts to a local Hardhat network and simulates a circuit-breaker event.
 npx hardhat run scripts/demoScenario.ts
 
