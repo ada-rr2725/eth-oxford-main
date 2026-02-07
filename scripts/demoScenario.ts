@@ -30,13 +30,13 @@ async function main() {
   console.log("\n--- SCENARIO START: THE SAFE STATE ---");
   
   // 1. User Deposits Money
-  // We use a small amount so you don't run out of testnet ETH
+  // Small deposit to test the flow. In a real scenario, this could be any amount.
   const depositAmount = ethers.parseEther("0.1"); 
   console.log(`User depositing 0.1 C2FLR into Iris...`);
   await (await iris.deposit({ value: depositAmount })).wait();
   console.log("Deposit successful.");
 
-  // 2. User Withdraws Money (Should Work because we reset it!)
+  // 2. User Withdraws Money
   console.log(`User attempting withdrawal (Market is Safe)...`);
   await (await iris.withdraw(ethers.parseEther("0.01"))).wait();
   console.log("Withdrawal successful. System Nominal.");
@@ -62,7 +62,7 @@ async function main() {
           console.log("SUCCESS: Transaction Reverted!");
           console.log("IRIS SHUTTER ENGAGED. ASSETS SECURED.");
       } else {
-          // Sometimes the error message is nested, so we print success anyway if it failed
+          // Sometimes the error message might be different based on the environment, so we check for the expected revert reason.
           console.log("SUCCESS: Transaction Reverted! (Error: " + error.message + ")");
       }
   }

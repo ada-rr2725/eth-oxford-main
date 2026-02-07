@@ -3,6 +3,7 @@ import { ethers } from "hardhat";
 async function main() {
     console.log("Deploying Sonar...");
 
+    // DEPLOY THE SONAR CONTRACT (Lumiscan Core)
     const Sonar = await ethers.getContractFactory("Sonar");
     const sonar = await Sonar.deploy();
 

@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"  # FORCE SIDEBAR OPEN
 )
 
-# --- THEME: INSTITUTIONAL DARK ---
+# --- THEME ---
 st.markdown("""
     <style>
     .stApp { background-color: #000000; color: #e0e0e0; font-family: 'Helvetica Neue', sans-serif; }

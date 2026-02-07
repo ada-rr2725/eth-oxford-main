@@ -1,134 +1,137 @@
-<p align="center">
-  <a href="https://flare.network/" target="blank"><img src="https://content.flare.network/Flare-2.svg" width="400" height="300" alt="Flare Logo" /></a>
-</p>
+# LUMISCAN // Autonomous Risk Layer
 
-# Flare Hardhat Starter Kit
+### *Bridging the 1.8s Latency Gap on Flare*
 
-This is a starter kit for interacting with Flare blockchain.
-It provides example code for interacting with enshrined Flare protocol, and useful deployed contracts.
-It also demonstrates, how the official Flare smart contract periphery [package](https://www.npmjs.com/package/@flarenetwork/flare-periphery-contracts) can be used in your projects.
+**Lumiscan** is an infrastructure-grade security primitive designed to solve the **Oracle Latency Gap** on the Flare Network. By utilizing a hybrid architecture of high-frequency off-chain sensing and decentralized FDC verification, Lumiscan protects F-Asset vaults and dApps from insolvency and arbitrage exploitation during periods of extreme market volatility.
 
-## Getting started
+---
 
-If you are new to Hardhat please check the [Hardhat getting started doc](https://hardhat.org/hardhat-runner/docs/getting-started#overview)
+## 01 // The Problem: Temporal Desync
 
-1. Clone and install dependencies:
+The core friction in F-Asset security is the **Latency Gap**. While Flare's FTSO v2 offers industry-leading updates (~1.8s), this still creates a stochastic window where the "Real World" price (e.g., BTC on Binance) has crashed, but the "On-Chain" price is still stale.
 
-    ```console
-    git clone https://github.com/flare-foundation/flare-hardhat-starter.git
-    cd flare-hardhat-starter
-    ```
+High-Frequency Trading (HFT) firms exploit this **Temporal Desync** to:
 
-    and then run:
+1. **Drain Vaults:** Withdrawing F-Assets at stale, inflated prices before the oracle updates.
+2. **Manipulate Liquidations:** Triggering cascades before market equilibrium is found.
+3. **Gaming Exploits:** Arbitraging in-game economies that use F-Assets as currency.
 
-    ```console
-    yarn
-    ```
+---
 
-    or
+## 02 // The Solution: Hybrid Optimistic Defense
 
-    ```console
-    npm install --force
-    ```
+Lumiscan neutralizes this window by separating **Detection (Speed)** from **Settlement (Truth)**.
 
-2. Set up `.env` file
+### **A. The Sentinel (Optimistic Detection)**
 
-    ```console
-    cp .env.example .env
-    ```
+Instead of waiting for the 90s FDC finality or the 1.8s FTSO update, the **Sentinel Agent** monitors off-chain spot prices via high-frequency polling.
 
-3. Change the `PRIVATE_KEY` in the `.env` file to yours
+* **Action:** When a risk threshold is breached (e.g., >5% drop), the Sentinel triggers an immediate "Optimistic Lock" on the **Sonar** contract.
+* **Speed:** **Sub-Second Response** (Designed to preempt the 1.8s FTSO block heartbeat).
 
-4. Compile the project
+### **B. The FDC (Decentralized Settlement)**
 
-    ```console
-    yarn hardhat compile
-    ```
+Once the lock is active, the system utilizes the **Flare Data Connector (FDC)** to retrospectively verify the threat.
 
-    or
+* **Verification:** The Sentinel submits a cryptographic proof of the external price drop (or "Whale Movement") to the FDC.
+* **Resolution:** If the FDC verifies the proof (after the ~90s voting epoch), the lock is confirmed. If the proof is invalid, the Sentinel is slashed, and the protocol automatically resets.
 
-    ```console
-    npx hardhat compile
-    ```
+---
 
-    This will compile all `.sol` files in your `/contracts` folder.
-    It will also generate artifacts that will be needed for testing.
-    Contracts `Imports.sol` import MockContracts and Flare related mocks, thus enabling mocking of the contracts from typescript.
+## 03 // System Architecture
 
-5. Run Tests
+### **The Iris Mechanism**
 
-    ```console
-    yarn hardhat test
-    ```
+The "Iris" is the logical gatekeeper of the system.
 
-    or
+* **Open:** Liquidity flows freely.
+* **Closed:** High-risk transactions (Withdrawals, Borrows) are reverted.
 
-    ```console
-    npx hardhat test
-    ```
+### **The Sonar Primitive**
 
-6. Deploy
+**`Sonar.sol`** is the universal smart contract interface that dApp developers integrate. It acts as a **Global Circuit Breaker**.
 
-    Check the `hardhat.config.ts` file, where you define which networks you want to interact with.
-    Flare mainnet & test network details are already added in that file.
+* **Integration:** Developers wrap critical functions with a check to `opticNerve.isRiskDetected()`.
+* **Result:** The protocol locks **before** the stale Oracle price can be exploited.
 
-    Make sure that you have added API Keys in the `.env` file
+---
 
-    ```console
-    npx hardhat run scripts/tryDeployment.ts
-    ```
+## 04 // Technical Specification (Transparency Layer)
 
-## Repository structure
+To provide full transparency for the hackathon technical review, the system components are categorized as follows:
+
+| Component | Status | Implementation Detail |
+| --- | --- | --- |
+| **FTSO v2 Latency** | **Simulated** | Recalibrated to Flare's 1.8s block-heartbeat in the UI to demonstrate the "Vulnerable Window." |
+| **FDC Sentinel Feed** | **Implemented** | High-frequency polling agent representing the **Flare Data Connector**. It ingests **non-smart-contract data** (CEX Spot) as a leading indicator. |
+| **Sonar Interface** | **Implemented** | Solidity logic-gate (`Sonar.sol`) that allows for external triggers (`triggerArtificialAlert`) and FDC verification hooks (`triggerRiskAlert`). |
+| **Iris Protection** | **Implemented** | Client contract (`Iris.sol`) that successfully reverts transactions (`SHUTTER CLOSED`) when risk is detected. |
+| **FDC Attestation** | **Roadmap** | Transitioning from the current optimistic trigger to a fully decentralized FDC Attestation Request for permanent state settlement. |
+
+---
+
+## 05 // Project Structure
+
+To navigate this repository:
+
+* **`/contracts`**: Contains the core logic.
+* `Sonar.sol`: The risk primitive and FDC verification logic.
+* `Iris.sol`: The client contract representing a protected Vault/dApp.
+
+
+* **`/scripts`**: Hardhat deployment scripts and `demoScenario.ts` for testing the circuit breaker flow.
+* **`/lumiscan-ui`**: The React/Next.js dashboard. This is the **Sentinel Terminal** that visualizes the 1.8s latency gap and the "Iris" mechanism.
+
+---
+
+## 06 // Flare Track Feedback (Technical Review)
+
+**Experience Building on Flare:**
+As postgraduate students in Applied Computational Science (Imperial College London), our focus was on the **Control Theory** of decentralized networks. While FTSO v2's 1.8s block time is a significant leap for on-chain price discovery, the FDC provides a unique 'Out-of-Band' attestation capability.
+
+By treating the FDC as a high-frequency sensor and the FTSO as a state-settlement layer, we were able to implement a **Feed-Forward Control Loop** that is mathematically impossible on higher-latency networks. Lumiscan is the "Guardian" that ensures **Solvency** (Asset Backing) takes precedence over **Instant Liquidity** (Withdrawals) during black swan events.
+
+---
+
+## 07 // Future Work: The Road to Autonomous Defense
+
+The current MVP demonstrates the **Sentinel-to-Sonar** signal flow. The next phase focuses on moving from a centralized simulation to a fully decentralized, production-grade security primitive:
+
+* **Stochastic LRI Optimization:** Replacing deterministic thresholds with **LSTM (Long Short-Term Memory)** models to recognize "Flash Crash" signatures before they manifest in price.
+* **Adversarial Neutralization:** Minimizing time-to-lock () to eliminate the profit margins for HFT arbitrage bots.
+* **Decentralized Keepers:** Automating the `resetSystem()` call via a network of FDC-verified keepers.
+
+---
+
+## 08 // Installation & Setup
+
+To run the **Lumiscan** environment locally:
+
+### **1. Clone & Install**
+
+```bash
+git clone https://github.com/ada-rr2725/eth-oxford-main.git
+cd flare-hardhat-starter
+npm install
 
 ```
-├── contracts: Solidity smart contracts
-├── scripts: Typescript scripts that interact with the blockchain
-├── test
-├── hardhat.config.ts
-├── package.json
-├── README.md
-├── tsconfig.json
-└── yarn.lock
+
+### **2. Setup UI**
+
+```bash
+cd lumiscan-ui
+npm install
+
 ```
 
-## Contributing
+### **3. Launch Sentinel Terminal**
 
-Before opening a pull request, lint and format the code.
-You can do that by running the following commands.
+```bash
+npm run dev
 
-```sh
-yarn format:fix
 ```
 
-```sh
-yarn lint:fix
-```
 
-## Clean repository
+Access the dashboard at [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000).
 
-If you want to start building your projects from a repository that is already setup to work with Flare correctly, but you do not want to keep any of the examples, these are the files you should delete:
-
-- all files in the `contracts/` folder
-- all files in the `scripts/` folder, except for the `scripts/fdcExample/Base.ts` which might come in useful
-
-A shell command that does this is:
-
-```sh
-rm -rf contracts/* & mv scripts/fdcExample/Base.ts ./Base.ts & rm -rf scripts/* & mv ./Base.ts scripts/Base.ts
-```
-
-## Patches
-
-This project uses `patch-package` to fix an upstream bug in `@openzeppelin/upgrades-core@1.44.2`.
-
-**Issue:** When `ethereum-cryptography` v3.x is installed, `ethereumjs-util`'s `keccak256` returns a `Uint8Array` instead of a `Buffer`. The OpenZeppelin code calls `.toString('hex')` expecting a Buffer, but `Uint8Array.toString()` ignores the encoding argument and returns comma-separated decimals (e.g., `54,8,148,...`) instead of a hex string. This breaks contract verification and proxy detection.
-
-**Fix:** The patch wraps `keccak256()` results with `Buffer.from()` before calling `.toString('hex')`. It's automatically applied on `yarn install` via the postinstall script.
-
-Once OpenZeppelin releases a fix upstream, this patch can be removed.
-
-## Resources
-
-- [Flare Developer Hub](https://dev.flare.network/)
-- [Hardhat Guides](https://dev.flare.network/fdc/guides/hardhat)
-- [Hardhat Docs](https://hardhat.org/docs)
+> **Note for Judges:** This MVP is configured in **Simulation Mode** by default. This ensures the 1.8s latency exploit window is clearly visible and testable regardless of network congestion on the Coston2 testnet. The on-chain logic (`Sonar.sol`) is fully deployed and verifiable via the `/scripts/demoScenario.ts`.

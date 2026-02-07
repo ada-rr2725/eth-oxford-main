@@ -26,6 +26,8 @@ const FlareLogo = ({ className }) => (
 
 export default function Home() {
   // --- STATE ---
+  const [oraclePrice, setOraclePrice] = useState(DEFAULT_START_PRICE);
+  const lastOracleUpdate = useRef(0);
   const [volatility, setVolatility] = useState(0.0);
   const [priceHistory, setPriceHistory] = useState([]);
   const [isShutterClosed, setIsShutterClosed] = useState(false);
@@ -61,11 +63,12 @@ export default function Home() {
     }
     setPriceHistory(initialData);
     setCurrentPrice(price);
+    setOraclePrice(price); // Ensure oracle matches initial spot
   };
 
-  // --- HEARTBEAT LOOP ---
+  // --- HEARTBEAT LOOP (1.8s Latency Calibration) ---
   useEffect(() => {
-    const tickRate = isSimulating ? 200 : 1500; 
+    const tickRate = 200; // Sensor polling rate
     const interval = setInterval(() => {
       setPriceHistory(prev => {
         if (prev.length === 0) return prev;
@@ -73,31 +76,32 @@ export default function Home() {
         let newPrice = lastPrice;
         let currentVol = 0.0;
 
+        // FDC SENSOR LOGIC (Updates every 200ms)
         if (isSimulating) {
-           if (simStep.current < CRASH_PATTERN.length) {
-              const multiplier = CRASH_PATTERN[simStep.current];
-              const targetPrice = crashStartPrice.current * multiplier;
-              newPrice = targetPrice + (Math.random() * 150 - 75);
+          if (simStep.current < CRASH_PATTERN.length) {
+              newPrice = crashStartPrice.current * CRASH_PATTERN[simStep.current] + (Math.random() * 150 - 75);
               simStep.current++;
-              
               const crashDepth = (DEFAULT_START_PRICE - newPrice) / DEFAULT_START_PRICE;
               currentVol = Math.min(crashDepth * 4, 1.0); 
-
-              if ((currentVol * 100) > alertThreshold && !isShutterClosed) {
-                  setIsShutterClosed(true);
-              }
-           } else {
+              if ((currentVol * 100) >= alertThreshold && !isShutterClosed) setIsShutterClosed(true);
+          } else {
               newPrice = lastPrice * (1 + (Math.random() * 0.01 - 0.005));
               currentVol = 1.0; 
-              if (!isShutterClosed) setIsShutterClosed(true);
-           }
+          }
         } else {
-           newPrice = lastPrice * (1 + (Math.random() * 0.003 - 0.0015));
-           currentVol = Math.random() * 0.05;
+          newPrice = lastPrice * (1 + (Math.random() * 0.003 - 0.0015));
+          currentVol = Math.random() * 0.05;
         }
 
         setCurrentPrice(newPrice);
         setVolatility(currentVol);
+
+        // FTSO ORACLE LOGIC (Simulating 1.8s Block Latency)
+        const now = Date.now();
+        if (now - lastOracleUpdate.current >= 1800) {
+            setOraclePrice(newPrice); // Oracle catches up every 1.8 seconds
+            lastOracleUpdate.current = now;
+        }
         
         const newHistory = [...prev, { time: Date.now(), value: newPrice }];
         if (newHistory.length > 60) newHistory.shift();
@@ -164,7 +168,7 @@ export default function Home() {
   return (
     <main className="h-screen w-full bg-[#050505] relative overflow-hidden flex flex-col items-center justify-center font-sans selection:bg-[#E62058]/30">
       
-      {/* ATMOSPHERE: Changed to Flare Pink (#E62058) */}
+      {/* ATMOSPHERE */}
       <div className={`absolute top-0 w-full h-full pointer-events-none transition-opacity duration-[2000ms] ${isShutterClosed ? "opacity-30" : "opacity-10"}`}
            style={{
              background: `radial-gradient(circle at 50% 50%, ${isShutterClosed ? '#E62058' : '#FF5F1F'}, transparent 60%)`
@@ -222,7 +226,7 @@ export default function Home() {
                           <div>
                               <h3 className="text-xs font-bold text-white tracking-widest mb-1">THE MISSION</h3>
                               <p className="text-[11px] text-gray-400 leading-relaxed">
-                                  Lumiscan is a decentralized circuit breaker. It autonomously monitors off-chain liquidity sources via the Flare Data Connector (FDC) to detect anomalies before they impact on-chain assets.
+                                  Lumiscan is a hybrid decentralized circuit breaker. It utilizes a high-frequency Optimistic Sentinel to monitor off-chain liquidity sources, using the Flare Data Connector (FDC) to provide decentralized attestation and settlement of risk events once detected.
                               </p>
                           </div>
                       </div>
@@ -232,7 +236,7 @@ export default function Home() {
                           <div>
                               <h3 className="text-xs font-bold text-white tracking-widest mb-1">THE IRIS MECHANISM</h3>
                               <p className="text-[11px] text-gray-400 leading-relaxed">
-                                  When volatility exceeds safe parameters, the "Iris" closes. This broadcasts a pause signal to the Sonar Smart Contract, instantly freezing <strong>Withdrawals, Liquidations, and Borrows</strong> to prevent insolvency during critical volatility events.
+                                  When market volatility breaches defined safety parameters, the "Iris" closes. This broadcasts an immediate pause signal to the Sonar Smart Contract, placing integrated protocols into a Protected State. By temporarily freezing high-risk actions—such as withdrawals, liquidations, or marketplace trades—the system prevents insolvency and arbitrage exploitation during periods of extreme price divergence, ensuring the economic integrity of the ecosystem remains intact.
                               </p>
                           </div>
                       </div>
@@ -242,7 +246,17 @@ export default function Home() {
                           <div>
                               <h3 className="text-xs font-bold text-white tracking-widest mb-1">THE RISK INDEX (LRI)</h3>
                               <p className="text-[11px] text-gray-400 leading-relaxed">
-                                  LRI measures <strong>absolute price deviation</strong> from the 1-hour TWAP. It quantifies the depth of a crash regardless of prior market conditions.
+                                  The <strong>Lumiscan Risk Index (LRI)</strong> is a multi-factor volatility engine designed to distinguish 
+                                  between "Market Noise" and "Systemic Collapse."
+                                  While the current MVP utilizes a <strong>Deterministic Threshold</strong> based on absolute price deviation, 
+                                  the LRI is engineered to evolve into a <strong>Predictive Sentinel</strong>.
+
+                                  <br /><br />
+
+                                  By analyzing the <strong>temporal divergence</strong> between off-chain spot liquidity (via FDC) and 
+                                  on-chain settlement (FTSO), the LRI identifies the mathematical "signature" of a crash in its infancy. 
+                                  The end goal is a <strong>Stochastic Optimization Model</strong> that neutralizes the unit-economics of HFT 
+                                  exploits—closing the Iris before the 1.8s block-latency window can be weaponized against the protocol.
                               </p>
                           </div>
                       </div>
@@ -284,12 +298,12 @@ export default function Home() {
                   <div className="flex items-center gap-2 mt-0 ml-12">
                       <div className={`w-1.5 h-1.5 rounded-full ${isShutterClosed ? "bg-[#E62058] animate-ping" : "bg-emerald-500"}`}></div>
                       <span className="text-[10px] text-white/40 font-mono tracking-[0.3em] uppercase">
-                          {isShutterClosed ? "IRIS_LOCKDOWN" : "SYSTEM_ACTIVE"}
+                          {isShutterClosed ? "IRIS_SHUTTER_CLOSED" : "SYSTEM_ACTIVE"}
                       </span>
                   </div>
               </div>
 
-              {/* 2. SECONDARY ATTRIBUTION (Top-Justified) */}
+              {/* 2. SECONDARY ATTRIBUTION */}
               <div className="flex items-start gap-3 border-l border-white/10 pl-6 h-9 opacity-40 hover:opacity-100 transition-opacity duration-500">
                   <span className="text-[10px] text-white/50 tracking-[0.3em] font-mono uppercase mt-[6px] hidden lg:block">
                       Built on
@@ -302,7 +316,7 @@ export default function Home() {
               </div>
           </div>
           
-          {/* 3. SYSTEM CONNECTION (Right Side) */}
+          {/* 3. SYSTEM CONNECTION */}
           <div className="pointer-events-auto">
             <ConnectButton.Custom>
               {({ account, chain, openAccountModal, openConnectModal, mounted }) => {
@@ -331,23 +345,38 @@ export default function Home() {
           </div>
       </div>
 
-      {/* --- CENTER GHOST RING --- */}
+      {/* --- CENTER GHOST RING (Dual-Price HUD) --- */}
       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
-         <div className="flex flex-col items-center justify-center space-y-2">
-             <div className={`absolute w-[300px] h-[300px] rounded-full border border-white/10 transition-all duration-1000 ${isShutterClosed ? "border-[#E62058]/40 scale-110" : "scale-100 opacity-50"}`}></div>
-             <div className={`transition-all duration-500 ${isShutterClosed ? "text-[#E62058] scale-125" : "text-orange-400/80"}`}>
-                 {isShutterClosed ? <Lock size={24} /> : <ShieldCheck size={24} />}
-             </div>
-             <div className={`text-7xl font-thin tracking-tighter transition-all duration-300 ${isShutterClosed ? "text-[#E62058]" : "text-white"}`}>
-                ${currentPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}
-             </div>
-             <div className="flex flex-col items-center gap-1">
-                <div className="text-[10px] tracking-[0.5em] text-white/40 font-mono">F-BTC / BRIDGE</div>
-                <div className="text-[8px] text-orange-500/80 font-mono tracking-widest bg-orange-500/10 px-2 py-0.5 rounded flex items-center gap-1">
-                    <Globe size={8} /> SOURCE: FDC CONSENSUS
-                </div>
+        <div className="flex flex-col items-center justify-center space-y-2">
+            <div className={`absolute w-[300px] h-[300px] rounded-full border border-white/10 transition-all duration-1000 ${isShutterClosed ? "border-[#E62058]/40 scale-110" : "scale-100 opacity-50"}`}></div>
+            <div className={`transition-all duration-500 ${isShutterClosed ? "text-[#E62058] scale-125" : "text-orange-400/80"}`}>
+                {isShutterClosed ? <Lock size={24} /> : <ShieldCheck size={24} />}
             </div>
-         </div>
+
+              <div className="flex flex-col items-center">
+                  {/* FTSO PRICE (Slow/Vulnerable) */}
+                  <div className={`text-7xl font-thin tracking-tighter transition-all duration-300 ${isShutterClosed ? "text-[#E62058]" : "text-white"}`}>
+                    ${oraclePrice.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                  </div>
+                  <div className="text-[9px] tracking-[0.4em] text-white/30 font-mono mb-6 uppercase">
+                      Reference Asset Value (FTSO v2)
+                  </div>
+
+                  {/* FDC PRICE (Fast/Protective) */}
+                  <div className="bg-white/5 border border-white/10 rounded-full px-5 py-3 flex items-center gap-4 backdrop-blur-md">
+                    <div className="flex flex-col leading-none">
+                        <span className="text-[7px] text-white/40 font-mono uppercase tracking-widest">Sentinel Feed (FDC Spot)</span>
+                        <span className={`text-sm font-mono ${isShutterClosed ? "text-[#E62058]" : "text-orange-400"}`}>
+                          ${currentPrice.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                        </span>
+                    </div>
+                    <div className="w-[1px] h-4 bg-white/10"></div>
+                    <div className={`text-[8px] font-mono tracking-widest px-3 py-1 rounded transition-all ${isShutterClosed ? "bg-[#E62058] text-white animate-pulse" : "bg-emerald-500/20 text-emerald-400"}`}>
+                        {isShutterClosed ? "THREAT_ISOLATED" : "SENTINEL_SCANNING"}
+                    </div>
+                </div>
+              </div>
+        </div>
       </div>
 
       {/* --- RIGHT SIDE: CLIENT SIMULATION PANEL --- */}
@@ -442,12 +471,12 @@ export default function Home() {
                       <div className="mb-4">
                           <div className="flex justify-between text-[9px] font-mono mb-1">
                               <span className="text-gray-400">LIVE RISK INDEX</span>
-                              <span className={`${volatility * 100 > alertThreshold ? "text-[#E62058] animate-pulse" : "text-emerald-400"}`}>
+                              <span className={`${volatility * 100 >= alertThreshold ? "text-[#E62058] animate-pulse" : "text-emerald-400"}`}>
                                   {(volatility * 100).toFixed(0)} / 100
                               </span>
                           </div>
                           <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
-                              <div className={`h-full transition-all duration-300 ${volatility * 100 > alertThreshold ? "bg-[#E62058]" : "bg-emerald-400"}`} style={{ width: `${Math.min(volatility * 100, 100)}%` }}></div>
+                              <div className={`h-full transition-all duration-300 ${volatility * 100 >= alertThreshold ? "bg-[#E62058]" : "bg-emerald-400"}`} style={{ width: `${Math.min(volatility * 100, 100)}%` }}></div>
                           </div>
                       </div>
                       <div>
