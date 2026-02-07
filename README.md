@@ -1,6 +1,11 @@
-# LUMISCAN // Autonomous Risk Layer
+![Lumiscan Protocol Banner](./assets/iris_banner.png)
 
+# LUMISCAN // Autonomous Risk Layer
 ### *Bridging the 1.8s Latency Gap on Flare*
+
+[![Flare Network](https://img.shields.io/badge/Network-Flare_Coston2-FF5F1F?style=flat-square)](https://flare.network) [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Prototyping-yellow?style=flat-square)]() [![Stack](https://img.shields.io/badge/Tech-Solidity_%7C_React_%7C_Hardhat-black?style=flat-square)]()
+
+---
 
 **Lumiscan** is an infrastructure-grade security primitive designed to solve the **Oracle Latency Gap** on the Flare Network. By utilizing a hybrid architecture of high-frequency off-chain sensing and decentralized FDC verification, Lumiscan protects F-Asset vaults and dApps from insolvency and arbitrage exploitation during periods of extreme market volatility.
 
@@ -105,33 +110,44 @@ The current MVP demonstrates the **Sentinel-to-Sonar** signal flow. The next pha
 
 ## 08 // Installation & Setup
 
-To run the **Lumiscan** environment locally:
+To run the full **Lumiscan** environment, you will need two terminal windows.
 
-### **1. Clone & Install**
+### **Phase 1: The Protocol Core (Terminal A)**
+
+First, verify the On-Chain Logic (contracts and protection scripts).
 
 ```bash
-git clone https://github.com/ada-rr2725/eth-oxford-main.git
-cd flare-hardhat-starter
+# 1. Clone & Install Dependencies
+git clone <your-repo-link>
+cd lumiscan-protocol
 npm install
+
+# 2. Run the "Crash Test" Simulation
+# This deploys contracts to a local Hardhat network and simulates a circuit-breaker event.
+npx hardhat run scripts/demoScenario.ts
 
 ```
 
-### **2. Setup UI**
+*Expected Output: `SUCCESS: Transaction Reverted!*`
+
+### **Phase 2: The Sentinel UI (Terminal B)**
+
+Next, launch the visual dashboard to see the Latency Gap in action.
 
 ```bash
+# 1. Navigate to the UI folder
 cd lumiscan-ui
+
+# 2. Install UI Dependencies
 npm install
 
-```
-
-### **3. Launch Sentinel Terminal**
-
-```bash
+# 3. Launch the Dashboard
 npm run dev
 
 ```
 
+### **Phase 3: Access the System**
 
-Access the dashboard at [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000).
+Open your browser to [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000).
 
-> **Note for Judges:** This MVP is configured in **Simulation Mode** by default. This ensures the 1.8s latency exploit window is clearly visible and testable regardless of network congestion on the Coston2 testnet. The on-chain logic (`Sonar.sol`) is fully deployed and verifiable via the `/scripts/demoScenario.ts`.
+> **Note for Judges:** The UI is configured in **Simulation Mode**. Click "Inject Threat" to visualize how the Sentinel Agent detects volatility and closes the Iris shutter before the on-chain price updates.
